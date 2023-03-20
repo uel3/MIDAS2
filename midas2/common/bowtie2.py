@@ -70,10 +70,10 @@ def bowtie2_align(bt2_db_dir, bt2_db_name, bamfile_path, args):
         r1 = f"-U {args.r1}"
 
     try:
-        bt2_command = f"bowtie2 --no-unal -x {bt2_db_prefix} {max_fraglen} {max_reads} --{aln_mode} --{aln_speed} --threads {args.num_cores} -q {r1} {r2}"
+        bt2_command = f"bowtie2 {bt2_db_prefix} {max_fraglen} {max_reads} --{aln_mode} --{aln_speed} --threads {args.num_cores} -q {r1} {r2}"
         command(f"set -o pipefail; {bt2_command} | \
-                samtools view --threads {args.num_cores} -b - | \
-                samtools sort --threads {args.num_cores} -o {bamfile_path}", quiet=False)
+        tee >(samtools view --threads {args.num_cores} -b -F 2 -o unmapped_reads.bam) >(samtools view --threads {args.num_cores} -b -f 2) >/dev/null | \
+        samtools sort --threads {args.num_cores} -o {bamfile_path}", quiet=False)
     except:
         tsprint(f"Bowtie2 align to {bamfile_path} run into error")
         command(f"rm -f {bamfile_path}")
