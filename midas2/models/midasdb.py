@@ -18,7 +18,9 @@ def get_midasdb_layout(species_id="", genome_id="", component=""):
     return {
         # Input: table of content and collections of genomes
         "table_of_contents":             f"genomes.tsv",
+        "raw_genome":                    f"mags/{species_id}/{genome_id}.{component}",
         "imported_genome":               f"cleaned_imports/{species_id}/{genome_id}/{genome_id}.{component}",
+        "import_log":                    f"cleaned_imports/{species_id}/{genome_id}/import_genome.log",
 
         "annotation_file":               f"gene_annotations/{species_id}/{genome_id}/{genome_id}.{component}",
         "representative_genome":         f"gene_annotations/{species_id}/{genome_id}/{genome_id}.fna",
@@ -37,14 +39,20 @@ def get_midasdb_layout(species_id="", genome_id="", component=""):
         "build_markerdb_log":            f"markers/{marker_set}/build_markerdb.log",
 
         "pangenome_file":                f"pangenomes/{species_id}/{component}",
-        "pangenome_centroids":           f"pangenomes/{species_id}/centroids.ffn",
-        "pangenome_cluster_info":        f"pangenomes/{species_id}/cluster_info.txt",
         "pangenome_log":                 f"pangenomes/{species_id}/pangenome_build.log",
+        "pangenome_tempfile":            f"pangenomes/{species_id}/temp/{genome_id}/{component}",
+        "recluster_log":                 f"pangenomes/{species_id}/recluster_centroids.log",
+        "pangenome_centroids":           f"pangenomes/{species_id}/centroids.ffn",
         "pangenome_genes_info":          f"pangenomes/{species_id}/gene_info.txt",
         "pangenome_genes_len":           f"pangenomes/{species_id}/genes.len",
+
+        "pangenome_cluster_info":        f"pangenomes/{species_id}/cluster_info.txt",
+        "pangenome_contigs_len":         f"pangenomes/{species_id}/contigs.len",
         "cluster_info_log":              f"pangenomes/{species_id}/cluster_info.log",
+        "contig_length_log":             f"pangenomes/{species_id}/contig_length.log",
 
         "marker_genes":                  f"markers/{marker_set}/temp/{species_id}/{genome_id}/{genome_id}.{component}",
+        "marker_map_by_species":         f"markers/{marker_set}/temp/{species_id}/{species_id}.markers.map",
         "marker_genes_seq":              f"markers/{marker_set}/temp/{species_id}/{genome_id}/{genome_id}.markers.fa",
         "marker_genes_map":              f"markers/{marker_set}/temp/{species_id}/{genome_id}/{genome_id}.markers.map",
         "marker_genes_hmmsearch":        f"markers/{marker_set}/temp/{species_id}/{genome_id}/{genome_id}.hmmsearch",

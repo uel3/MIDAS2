@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import os
+import re
 from bisect import bisect
 from collections import defaultdict
+import gffutils
 import Bio.SeqIO
 
-from midas2.common.utils import InputStream, retry, select_from_tsv, tsprint
+from midas2.common.utils import InputStream, OutputStream, retry, select_from_tsv, tsprint, command
 from midas2.params.schemas import genes_feature_schema, PAN_GENE_INFO_SCHEMA, MARKER_INFO_SCHEMA, PAN_GENE_LENGTH_SCHEMA, CLUSTER_INFO_SCHEMA
 
 
@@ -47,7 +49,7 @@ def decode_genomes_arg(args, genomes):
                     n = int(n)
                     assert 0 <= i < n, f"Genome class and modulus make no sense: {i}, {n}"
                     for gid in genomes:
-                        gid_int = int(gid.replace("GUT_GENOME", ""))
+                        gid_int = int(re.search(r'\d+$', gid).group())
                         if gid_int % n == i:
                             selected_genomes.add(gid)
     except:
@@ -303,3 +305,61 @@ def compute_gene_boundary(features):
         boundaries = tuple(gr + 1 if idx%2 == 1 else gr for idx, gr in enumerate(feature_ranges_flat))
         gene_boundaries[contig_id] = {"genes": list(feature_ranges_sorted.keys()), "boundaries": boundaries}
     return gene_boundaries
+
+
+def has_ambiguous_bases(sequence):
+    # Check if sequence contains lower-case letters, which usually indicate soft-masked bases
+    ambiguous_bases = ['N', 'X', 'n', 'x']
+    return any(base in ambiguous_bases for base in sequence)
+
+
+def write_cluster_info(dict_of_centroids, dict_of_markers, dict_of_gene_length, cluster_info_fp):
+    with OutputStream(cluster_info_fp) as stream:
+        stream.write("\t".join(CLUSTER_INFO_SCHEMA.keys()) + "\n")
+        for r in dict_of_centroids.values():
+            centroid_99 = r["centroid_99"]
+            marker_id = dict_of_markers[centroid_99] if centroid_99 in dict_of_markers else ""
+            gene_len = dict_of_gene_length[centroid_99]
+            val = list(r.values()) + [gene_len, marker_id]
+            stream.write("\t".join(map(str, val)) + "\n")
+
+
+def parse_gff_to_tsv(gff3_file, genes_file):
+    """ Convert GFF3 features format into genes.feature """
+    command(f"rm -f {genes_file}")
+    command(f"rm -f {gff3_file}.db")
+    db = gffutils.create_db(gff3_file, f"{gff3_file}.db")
+    with OutputStream(genes_file) as stream:
+        stream.write("\t".join(["gene_id", "contig_id", "start", "end", "strand", "gene_type"]) + "\n")
+        for feature in db.all_features():
+            if feature.source == "prokka":
+                continue
+            if "ID" not in feature.attributes: #CRISPR
+                continue
+            seqid = feature.seqid
+            start = feature.start
+            stop = feature.stop
+            strand = feature.strand
+            gene_id = feature.attributes['ID'][0]
+            locus_tag = feature.attributes['locus_tag'][0]
+            assert gene_id == locus_tag
+            gene_type = feature.featuretype
+            stream.write("\t".join([gene_id, seqid, str(start), str(stop), strand, gene_type]) + "\n")
+    return True
+
+
+def get_contig_length(fasta_file):
+    clen = {}
+    with InputStream(fasta_file) as file:
+        for rec in Bio.SeqIO.parse(file, 'fasta'):
+            clen[rec.id] = len(rec.seq)
+    return clen
+
+
+def write_contig_length(dict_of_contig_length, contig_length_fp):
+    with OutputStream(contig_length_fp) as stream:
+        stream.write("\t".join(["genome_id", "contig_id", "contig_length"]) + "\n")
+        for gid, r in dict_of_contig_length.items():
+            for cid, clen in r.items():
+                vals = [gid, cid, str(clen)]
+                stream.write("\t".join(vals) + "\n")
